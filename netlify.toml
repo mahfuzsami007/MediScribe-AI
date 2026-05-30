@@ -2,17 +2,27 @@
   command = "npm run build"
   publish = "dist"
 
+# Ensure HTML files are served as text/html
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Content-Type = "text/html"
+
+# Ensure JS files have correct MIME type
 [[headers]]
   for = "/assets/*.js"
   [headers.values]
     Content-Type = "application/javascript"
 
+# Ensure CSS files have correct MIME type
 [[headers]]
   for = "/assets/*.css"
   [headers.values]
     Content-Type = "text/css"
 
+# SPA routing: serve index.html for all non-asset routes
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = true
