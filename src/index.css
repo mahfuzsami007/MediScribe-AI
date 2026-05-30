@@ -1,0 +1,119 @@
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap');
+
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────
+   Put custom base overrides AFTER tailwindcss import
+   so they sit in the plain cascade above @layer base.
+   We use @layer components so Tailwind's own layer
+   ordering is respected: base < components < utilities
+───────────────────────────────────────────────── */
+
+:root {
+  --blue: #2563eb;
+  --blue-dark: #1d4ed8;
+  --blue-50: #eff6ff;
+  --blue-light: #dbeafe;
+  --green: #16a34a;
+  --green-light: #dcfce7;
+  --red: #dc2626;
+  --red-light: #fee2e2;
+  --amber: #d97706;
+  --amber-light: #fef3c7;
+}
+
+html, body, #root { height: 100%; width: 100%; }
+body {
+  font-family: 'Sora', sans-serif;
+  background: #f0f4f8;
+  color: #1e293b;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+
+/* ── Animations ─────────────────────────────── */
+@keyframes pulse  { 0%,100%{opacity:1} 50%{opacity:.4} }
+@keyframes pop    { 0%{transform:scale(.5);opacity:0} 70%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
+@keyframes blink  { 0%,100%{opacity:1} 50%{opacity:.5} }
+@keyframes fadein { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+@keyframes slidein{ from{transform:translateY(16px);opacity:0} to{transform:translateY(0);opacity:1} }
+@keyframes spin   { to{transform:rotate(360deg)} }
+@keyframes mpulse {
+  0%,100%{box-shadow:0 6px 20px rgba(220,38,38,.4),0 0 0 0 rgba(220,38,38,.3)}
+  50%    {box-shadow:0 6px 20px rgba(220,38,38,.4),0 0 0 16px rgba(220,38,38,0)}
+}
+
+.animate-pop       { animation: pop .4s ease; }
+.animate-fadein    { animation: fadein .3s ease; }
+.animate-slidein   { animation: slidein .3s ease; }
+.animate-pulse-dot { animation: pulse 2s infinite; }
+.animate-blink     { animation: blink 1s infinite; }
+.animate-mpulse    { animation: mpulse 1.5s infinite; }
+.animate-spin-slow { animation: spin 1s linear infinite; }
+
+/* ── Input / Textarea shared styles ─────────────
+   MUST be in @layer components so they beat
+   Tailwind's @layer base preflight which sets
+   background-color:transparent on all inputs.
+─────────────────────────────────────────────── */
+@layer components {
+  .ms-input {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 10px 14px !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    font-family: 'Sora', sans-serif !important;
+    color: #1e293b !important;
+    background-color: #f8fafc !important;
+    outline: none !important;
+    line-height: 1.5 !important;
+    transition: border-color .2s, box-shadow .2s, background-color .2s !important;
+  }
+  .ms-input:focus {
+    border-color: #2563eb !important;
+    background-color: #ffffff !important;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.08) !important;
+  }
+  .ms-input.error   { border-color: #dc2626 !important; }
+  .ms-input::placeholder { color: #94a3b8; }
+
+  .ms-textarea {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 10px 14px !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    font-size: 13px !important;
+    font-family: 'Sora', sans-serif !important;
+    color: #1e293b !important;
+    background-color: #ffffff !important;
+    outline: none !important;
+    resize: vertical;
+    line-height: 1.6 !important;
+    transition: border-color .2s, box-shadow .2s !important;
+  }
+  .ms-textarea:focus {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.08) !important;
+  }
+  .ms-textarea::placeholder { color: #94a3b8; }
+}
+
+/* ── Print ──────────────────────────────────── */
+@media print {
+  body * { visibility: hidden; }
+  #rx-doc-print, #rx-doc-print * { visibility: visible; }
+  #rx-doc-print {
+    position: fixed; top: 0; left: 0;
+    width: 100%; padding: 40px;
+    font-size: 13px; background: white;
+  }
+}
