@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # MediScribe AI — React + Vite Project
 
 Built with React 18, Vite, Tailwind CSS v4, React Router v6, Lucide React.
@@ -91,9 +90,4 @@ npm install @supabase/supabase-js
 ```
 Replace mock submit() in AuthFlow.jsx with supabase.auth.signUp() etc.
 
-## Connect Real Voice (Whisper)
-Replace MOCK_AI in src/data/mockData.js with OpenAI Whisper API calls.
-=======
-# MediScribe-AI
-MediScribe AI is free of cost web application which can transcribe doctor's voice speech into prescription. 
->>>>>>> 39b607b84319ab269e281b118ba5a650e76fdda9
+
