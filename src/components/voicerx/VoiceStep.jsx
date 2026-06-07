@@ -4,68 +4,35 @@ import WaveForm from '../ui/WaveForm';
 
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 
-// Helper to extract data based on step key (improved patterns)
-const extractForStep = (text, stepKey) => {
-  const result = {};
-  const lowerText = text.toLowerCase();
+const getSystemPrompt = (stepKey) => {
+  const baseInstructions = `You are a clinical data extractor. Convert the doctor's dictation into a JSON object.
+Use the following clinical standards:
+- Vitals: add units (BP → "120/80 mmHg", HR → "72 bpm", Temp → "98.6 °F", Weight → "70 kg").
+- Medication frequency: output both a shorthand (BID, TID, QD, PRN, HS) AND an array of dosing times.
+  * "twice a day" → frequency_shorthand: "BID", times: ["morning", "night"]
+  * "three times a day" → "TID", times: ["morning", "afternoon", "night"]
+  * "four times a day" → "QID", times: ["morning", "afternoon", "evening", "night"]
+  * "once daily" → "QD", times: ["morning"]
+  * "every other day" → "QOD", times: ["every other day"]
+  * "as needed" → "PRN", times: []
+  * "at bedtime" → "HS", times: ["night"]
+  * "before meals" → "AC", times: ["before meals"]
+  * "after meals" → "PC", times: ["after meals"]
+- For medications, output an object with fields: name, dosage, frequency_shorthand, times (array of strings), duration.
+- For investigations, output an array of strings.
+- If a field is missing, use empty string or empty array.
+- Output ONLY valid JSON, no markdown, no extra text.`;
 
-  if (stepKey === 'patient') {
-    // Name: "patient John Doe" or "name John Doe"
-    const nameMatch = text.match(/(?:patient(?:'s)? name|name)[:\s]+([A-Z][a-z]+ [A-Z][a-z]+)/i) ||
-                      text.match(/\b([A-Z][a-z]+ [A-Z][a-z]+)\b(?=\s+(?:is|,|\.|$))/);
-    if (nameMatch) result.name = nameMatch[1];
-    // Age: any number followed by "years", "yrs", "y"
-    const ageMatch = text.match(/(\d{1,3})\s*(?:years?|yrs?|y)/i);
-    if (ageMatch) result.age = ageMatch[1];
-    // Gender: male/female/man/woman
-    const genderMatch = text.match(/\b(male|female|man|woman)\b/i);
-    if (genderMatch) result.gender = genderMatch[0].toLowerCase();
-  } 
-  else if (stepKey === 'vitals') {
-    // BP: 120/80 or 120 over 80
-    const bpMatch = text.match(/(\d{2,3})\/(\d{2,3})|(\d{2,3})\s*over\s*(\d{2,3})/i);
-    if (bpMatch) result.bp = bpMatch[1] ? `${bpMatch[1]}/${bpMatch[2]}` : `${bpMatch[3]}/${bpMatch[4]}`;
-    // Weight: number + kg/kilogram
-    const weightMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:kg|kilograms?)/i);
-    if (weightMatch) result.weight = `${weightMatch[1]} kg`;
-    // Temperature: number + F/C or degrees
-    const tempMatch = text.match(/(\d+(?:\.\d+)?)\s*(?:°?\s*(?:F|f|C|c|degrees?))/i);
-    if (tempMatch) result.temp = tempMatch[0];
-    // Heart rate: pulse or hr + number
-    const hrMatch = text.match(/(?:pulse|heart rate|hr)[:\s]*(\d{2,3})/i);
-    if (hrMatch) result.hr = `${hrMatch[1]} bpm`;
-  }
-  else if (stepKey === 'symptoms') {
-    // Chief complaint: anything after "chief complaint", "complaints", "symptoms" until end of sentence
-    let chiefMatch = text.match(/(?:chief complaint|complaints?|symptoms?)[:\s]+(.+?)(?:\.|$)/i);
-    if (!chiefMatch) chiefMatch = text.match(/(?:patient (?:has|presents with)) (.+?)(?:\.|$)/i);
-    if (chiefMatch) result.chief = chiefMatch[1].trim();
-    // Findings: after "examination", "findings", "on exam"
-    const findingsMatch = text.match(/(?:examination|findings|on exam)[:\s]+(.+?)(?:\.|$)/i);
-    if (findingsMatch) result.findings = findingsMatch[1].trim();
-  }
-  else if (stepKey === 'medications') {
-    // Medications: after "prescribe", "medication", "meds", "give", "start"
-    let medsMatch = text.match(/(?:prescribe|medication|meds?|give|start)[:\s]+(.+?)(?:\.|$)/i);
-    if (!medsMatch) medsMatch = text.match(/([a-z]+ \d+ (?:mg|mcg|g|ml) .+?)(?:\.|$)/i); // catches "amlodipine 5 mg once daily"
-    if (medsMatch) result.meds = medsMatch[1].trim();
-  }
-  else if (stepKey === 'investigations') {
-    // Investigations: after "order", "investigations", "tests", "lab", "imaging"
-    let invMatch = text.match(/(?:order|investigations?|tests?|lab|imaging)[:\s]+(.+?)(?:\.|$)/i);
-    if (!invMatch) invMatch = text.match(/(?:CBC|X-ray|ECG|MRI|CT|blood work|urinalysis)/i);
-    if (invMatch) result.tests = invMatch[0].trim(); // use full match if no clear pattern
-  }
-  else if (stepKey === 'habits') {
-    // Advice: after "advise", "recommend", "instructions", "lifestyle", "diet"
-    let adviceMatch = text.match(/(?:advise|recommend|instructions?|lifestyle|diet)[:\s]+(.+?)(?:\.|$)/i);
-    if (!adviceMatch) adviceMatch = text.match(/(?:avoid|take|exercise|increase|decrease|stop).+?(?:\.|$)/i);
-    if (adviceMatch) result.advice = adviceMatch[1] ? adviceMatch[1].trim() : adviceMatch[0].trim();
-  }
+  const stepSchemas = {
+    patient: `Extract patient info. Return JSON: { "name": "", "age": "", "gender": "" }`,
+    vitals: `Extract vitals. Return JSON: { "bp": "", "weight": "", "temp": "", "hr": "" }`,
+    symptoms: `Extract chief complaint and findings. Return JSON: { "chief": "", "findings": "" }`,
+    medications: `Extract medications. Return JSON: { "meds": [{"name":"","dosage":"","frequency_shorthand":"","times":[],"duration":""}] }`,
+    investigations: `Extract ordered tests. Return JSON: { "tests": [] }`,
+    habits: `Extract lifestyle advice, patient instructions, or recommendations. The doctor may say "advise", "recommend", "instructions", "lifestyle changes", "diet", "exercise", "avoid", "take", etc. Return JSON: { "advice": "" }`,
+  };
 
-  // Log extracted data for debugging (remove in production)
-  console.log(`Extracted for ${stepKey}:`, result);
-  return result;
+  return `${baseInstructions}\n\n${stepSchemas[stepKey]}`;
 };
 
 export default function VoiceStep({ step, idx, total, data, onData, onNext, onPrev, rec, setRec }) {
@@ -102,30 +69,94 @@ export default function VoiceStep({ step, idx, total, data, onData, onNext, onPr
         formData.append('language', 'en');
 
         setRec('processing');
+        let rawTranscript = '';
         try {
-          const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+          // ---- Whisper transcription ----
+          const whisperRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
             method: 'POST',
             headers: { Authorization: `Bearer ${GROQ_API_KEY}` },
             body: formData,
           });
-          if (groqRes.status === 429) {
+          if (whisperRes.status === 429) {
             setCooldown(true);
             alert('Voice limit reached. Please wait 2 seconds.');
             setRec('idle');
             return;
           }
-          if (!groqRes.ok) throw new Error(`Groq error: ${groqRes.status}`);
-          const { text: rawTranscript } = await groqRes.json();
+          if (!whisperRes.ok) throw new Error(`Whisper error: ${whisperRes.status}`);
+          const whisperData = await whisperRes.json();
+          rawTranscript = whisperData.text;
+          console.log(`[${step.key}] Raw transcript:`, rawTranscript); // debug
 
-          console.log(`Raw transcript for ${step.key}:`, rawTranscript); // debug
+          // ---- Chat completion with structured extraction ----
+          const systemPrompt = getSystemPrompt(step.key);
+          const userMessage = `Doctor's dictation: ${rawTranscript}\n\nExtract the clinical data according to the schema.`;
 
-          const extracted = extractForStep(rawTranscript, step.key);
-          // Merge with existing data for this step
-          onData({ ...data, ...extracted });
+          const chatRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${GROQ_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'llama-3.3-70b-versatile',
+              messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: userMessage },
+              ],
+              response_format: { type: 'json_object' },
+              temperature: 0.1,
+              max_tokens: 1024,
+            }),
+          });
+
+          if (!chatRes.ok) {
+            const errText = await chatRes.text();
+            throw new Error(`Chat LLM error (${chatRes.status}): ${errText}`);
+          }
+          const chatData = await chatRes.json();
+          const assistantMessage = chatData.choices[0]?.message?.content || '{}';
+          const cleanJson = assistantMessage.replace(/```json\s*|\s*```/g, '').trim();
+          console.log(`[${step.key}] LLM raw response:`, cleanJson); // debug
+          const parsed = JSON.parse(cleanJson);
+
+          // Map to current step's fields
+          let stepData = {};
+          if (step.key === 'patient') {
+            stepData = { name: parsed.name, age: parsed.age, gender: parsed.gender };
+          } else if (step.key === 'vitals') {
+            stepData = { bp: parsed.bp, weight: parsed.weight, temp: parsed.temp, hr: parsed.hr };
+          } else if (step.key === 'symptoms') {
+            stepData = { chief: parsed.chief, findings: parsed.findings };
+          } else if (step.key === 'medications') {
+            let medsString = '';
+            if (parsed.meds && Array.isArray(parsed.meds)) {
+              medsString = parsed.meds.map(m => {
+                let timesStr = '';
+                if (m.times && m.times.length) {
+                  timesStr = ` – take in ${m.times.join(', ')}`;
+                } else if (m.frequency_shorthand) {
+                  timesStr = ` (${m.frequency_shorthand})`;
+                }
+                return `${m.name} ${m.dosage}${timesStr}${m.duration ? ` × ${m.duration}` : ''}`;
+              }).join('; ');
+            }
+            stepData = { meds: medsString };
+          } else if (step.key === 'investigations') {
+            const testsString = (parsed.tests && Array.isArray(parsed.tests)) ? parsed.tests.join(', ') : '';
+            stepData = { tests: testsString };
+          } else if (step.key === 'habits') {
+            // Ensure advice field is extracted even if the LLM uses a different key
+            let adviceText = parsed.advice || parsed.instructions || parsed.recommendations || '';
+            if (!adviceText && typeof parsed === 'string') adviceText = parsed;
+            stepData = { advice: adviceText };
+          }
+
+          onData({ ...data, ...stepData });
           setRec('done');
         } catch (err) {
-          console.error('Transcription error:', err);
-          alert(`Voice failed: ${err.message}. Please type manually.`);
+          console.error('Pipeline error:', err);
+          alert(`Voice extraction failed: ${err.message}. Please type manually.`);
           setRec('idle');
         } finally {
           setIsRecording(false);
@@ -154,10 +185,11 @@ export default function VoiceStep({ step, idx, total, data, onData, onNext, onPr
     }
   };
 
+  // UI state mapping (unchanged)
   const STATE = {
     idle:       { label: 'Ready to Record', hint: 'Tap the microphone to start', btnCls: 'bg-blue-600 hover:bg-blue-700 shadow-lg', Icon: Mic, iconCls: 'text-white' },
     recording:  { label: 'Recording…',      hint: 'Speak clearly. Tap ⏹ to stop.', btnCls: 'bg-red-500 animate-mpulse', Icon: Square, iconCls: 'text-white' },
-    processing: { label: 'Transcribing',    hint: 'AI is converting your speech...', btnCls: 'bg-amber-500', Icon: Loader, iconCls: 'text-white animate-spin-slow' },
+    processing: { label: 'Transcribing & Extracting', hint: 'AI is processing your speech...', btnCls: 'bg-amber-500', Icon: Loader, iconCls: 'text-white animate-spin-slow' },
     done:       { label: 'Captured ✓',      hint: 'Fields filled! Review or re-record.', btnCls: 'bg-green-600', Icon: CheckCircle, iconCls: 'text-white' },
   };
   const { label, hint, btnCls, Icon, iconCls } = STATE[rec];
