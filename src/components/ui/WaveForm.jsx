@@ -12,11 +12,7 @@ export default function WaveForm({ active }) {
   return (
     <div className="flex items-center gap-1" style={{ height: 28 }}>
       {heights.map((v, i) => (
-        <div
-          key={i}
-          className="rounded-sm bg-blue-600 transition-all duration-100"
-          style={{ width: 3, height: active ? v : 4 }}
-        />
+        <div key={i} className="rounded-sm bg-blue-600 transition-all duration-100" style={{ width: 3, height: active ? v : 4 }} />
       ))}
     </div>
   );
