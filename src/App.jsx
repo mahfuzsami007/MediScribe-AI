@@ -9,6 +9,8 @@ import TemplatesPage from './pages/TemplatesPage';
 import ProfilePage from './pages/ProfilePage';
 import UpdatePasswordPage from './pages/UpdatePasswordPage';
 import ResearchDataPage from './pages/ResearchDataPage';
+import PatientViewPage from './pages/PatientViewPage';
+
 
 export default function App() {
   return (
@@ -25,6 +27,7 @@ export default function App() {
           <Route path="/templates" element={<TemplatesPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/research" element={<ResearchDataPage />} />
+          <Route path="/patient-view" element={<PatientViewPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
