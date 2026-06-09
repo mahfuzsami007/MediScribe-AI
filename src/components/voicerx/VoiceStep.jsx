@@ -71,7 +71,6 @@ export default function VoiceStep({ step, idx, total, data, onData, onNext, onPr
         setRec('processing');
         let rawTranscript = '';
         try {
-          // ---- Whisper transcription ----
           const whisperRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
             method: 'POST',
             headers: { Authorization: `Bearer ${GROQ_API_KEY}` },
@@ -86,9 +85,8 @@ export default function VoiceStep({ step, idx, total, data, onData, onNext, onPr
           if (!whisperRes.ok) throw new Error(`Whisper error: ${whisperRes.status}`);
           const whisperData = await whisperRes.json();
           rawTranscript = whisperData.text;
-          console.log(`[${step.key}] Raw transcript:`, rawTranscript); // debug
+          console.log(`[${step.key}] Raw transcript:`, rawTranscript);
 
-          // ---- Chat completion with structured extraction ----
           const systemPrompt = getSystemPrompt(step.key);
           const userMessage = `Doctor's dictation: ${rawTranscript}\n\nExtract the clinical data according to the schema.`;
 
@@ -117,10 +115,9 @@ export default function VoiceStep({ step, idx, total, data, onData, onNext, onPr
           const chatData = await chatRes.json();
           const assistantMessage = chatData.choices[0]?.message?.content || '{}';
           const cleanJson = assistantMessage.replace(/```json\s*|\s*```/g, '').trim();
-          console.log(`[${step.key}] LLM raw response:`, cleanJson); // debug
+          console.log(`[${step.key}] LLM raw response:`, cleanJson);
           const parsed = JSON.parse(cleanJson);
 
-          // Map to current step's fields
           let stepData = {};
           if (step.key === 'patient') {
             stepData = { name: parsed.name, age: parsed.age, gender: parsed.gender };
@@ -146,7 +143,7 @@ export default function VoiceStep({ step, idx, total, data, onData, onNext, onPr
             const testsString = (parsed.tests && Array.isArray(parsed.tests)) ? parsed.tests.join(', ') : '';
             stepData = { tests: testsString };
           } else if (step.key === 'habits') {
-            // Ensure advice field is extracted even if the LLM uses a different key
+            // Reliable extraction: try multiple possible keys
             let adviceText = parsed.advice || parsed.instructions || parsed.recommendations || '';
             if (!adviceText && typeof parsed === 'string') adviceText = parsed;
             stepData = { advice: adviceText };
@@ -185,7 +182,6 @@ export default function VoiceStep({ step, idx, total, data, onData, onNext, onPr
     }
   };
 
-  // UI state mapping (unchanged)
   const STATE = {
     idle:       { label: 'Ready to Record', hint: 'Tap the microphone to start', btnCls: 'bg-blue-600 hover:bg-blue-700 shadow-lg', Icon: Mic, iconCls: 'text-white' },
     recording:  { label: 'Recording…',      hint: 'Speak clearly. Tap ⏹ to stop.', btnCls: 'bg-red-500 animate-mpulse', Icon: Square, iconCls: 'text-white' },
