@@ -22,12 +22,16 @@ export default function VoiceRxPage() {
   const [rec, setRec] = useState('idle');
   const [isSubmittingResearch, setIsSubmittingResearch] = useState(false);
 
-  // Fetch doctor profile
+  // Fetch doctor profile including clinic info
   useEffect(() => {
     const fetchProfile = async () => {
       const session = getSession();
       if (session?.user?.id) {
-        const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+        const { data } = await supabase
+          .from('profiles')
+          .select('*') // includes clinic_name, clinic_phone, clinic_address
+          .eq('id', session.user.id)
+          .single();
         setProfile(data);
       }
     };
@@ -89,12 +93,24 @@ export default function VoiceRxPage() {
     setRx(EMPTY_RX);
   };
 
+  // Build complete doctor object with clinic info
   const doctorData = profile ? {
-    name: profile.name,
-    reg: profile.reg_number,
-    specialty: profile.speciality,
-    email: profile.email,
-  } : { name: 'Dr. Name', reg: 'REG-0000', specialty: 'Physician', email: '' };
+    name: profile.name || profile.full_name || 'Doctor',
+    reg: profile.reg_number || 'REG-0000',
+    specialty: profile.speciality || 'Physician',
+    email: profile.email || '',
+    clinic_name: profile.clinic_name || 'MediScribe Clinic',
+    clinic_phone: profile.clinic_phone || '+880 1700-000000',
+    clinic_address: profile.clinic_address || '123 Medical Quarter, Dhaka 1200',
+  } : {
+    name: 'Dr. Name',
+    reg: 'REG-0000',
+    specialty: 'Physician',
+    email: '',
+    clinic_name: 'MediScribe Clinic',
+    clinic_phone: '+880 1700-000000',
+    clinic_address: '123 Medical Quarter, Dhaka 1200',
+  };
 
   return (
     <div className="flex h-full flex-col overflow-hidden">

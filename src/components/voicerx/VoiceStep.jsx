@@ -8,6 +8,7 @@ const getSystemPrompt = (stepKey) => {
   const baseInstructions = `You are a clinical data extractor. Convert the doctor's dictation into a JSON object.
 Use the following clinical standards:
 - Vitals: add units (BP → "120/80 mmHg", HR → "72 bpm", Temp → "98.6 °F", Weight → "70 kg").
+- Medication dosage: extract as a string with unit (e.g., "20 mg", "500 mg").
 - Medication frequency: output both a shorthand (BID, TID, QD, PRN, HS) AND an array of dosing times.
   * "twice a day" → frequency_shorthand: "BID", times: ["morning", "night"]
   * "three times a day" → "TID", times: ["morning", "afternoon", "night"]
@@ -16,9 +17,8 @@ Use the following clinical standards:
   * "every other day" → "QOD", times: ["every other day"]
   * "as needed" → "PRN", times: []
   * "at bedtime" → "HS", times: ["night"]
-  * "before meals" → "AC", times: ["before meals"]
-  * "after meals" → "PC", times: ["after meals"]
-- For medications, output an object with fields: name, dosage, frequency_shorthand, times (array of strings), duration.
+- Meal relation: if the doctor says "before meal" or "after meal", output a separate field "meal" with value "before meal" or "after meal". Do NOT include meal information in times array.
+- For medications, output an object with fields: name, dosage (string), frequency_shorthand, times (array of strings), duration, meal (string, optional).
 - For investigations, output an array of strings.
 - If a field is missing, use empty string or empty array.
 - Output ONLY valid JSON, no markdown, no extra text.`;
@@ -27,13 +27,53 @@ Use the following clinical standards:
     patient: `Extract patient info. Return JSON: { "name": "", "age": "", "gender": "" }`,
     vitals: `Extract vitals. Return JSON: { "bp": "", "weight": "", "temp": "", "hr": "" }`,
     symptoms: `Extract chief complaint and findings. Return JSON: { "chief": "", "findings": "" }`,
-    medications: `Extract medications. Return JSON: { "meds": [{"name":"","dosage":"","frequency_shorthand":"","times":[],"duration":""}] }`,
+    medications: `Extract medications. Return JSON: { "meds": [{"name":"","dosage":"","frequency_shorthand":"","times":[],"duration":"","meal":""}] }`,
     investigations: `Extract ordered tests. Return JSON: { "tests": [] }`,
     habits: `Extract lifestyle advice, patient instructions, or recommendations. Return JSON: { "advice": "" }`,
   };
 
   return `${baseInstructions}\n\n${stepSchemas[stepKey]}`;
 };
+
+// Helper: format times array into readable string like "Morning and Night"
+function formatTimes(times) {
+  if (!times || times.length === 0) return '';
+  const capitalized = times.map(t => t.charAt(0).toUpperCase() + t.slice(1));
+  if (capitalized.length === 1) return capitalized[0];
+  if (capitalized.length === 2) return `${capitalized[0]} and ${capitalized[1]}`;
+  const allButLast = capitalized.slice(0, -1).join(', ');
+  const last = capitalized[capitalized.length - 1];
+  return `${allButLast} and ${last}`;
+}
+
+// Helper: format a single medication with dedicated meal field
+function formatMedication(med) {
+  const { name, dosage, times, frequency_shorthand, duration, meal } = med;
+  let timesStr = '';
+  if (times && times.length > 0) {
+    timesStr = formatTimes(times);
+  } else if (frequency_shorthand) {
+    const freqMap = {
+      BID: "Morning and Night",
+      TID: "Morning, Afternoon and Night",
+      QID: "Morning, Afternoon, Evening and Night",
+      QD: "Morning",
+      QOD: "every other day",
+      PRN: "as needed",
+      HS: "night",
+    };
+    timesStr = freqMap[frequency_shorthand] || frequency_shorthand;
+  }
+  let result = `${name} ${dosage}`.trim();
+  if (timesStr) {
+    result += ` – take in [${timesStr}]`;
+  }
+  if (meal) {
+    result += ` - (${meal})`;
+  }
+  if (duration) result += ` × ${duration}`;
+  return result;
+}
 
 export default function VoiceStep({ step, idx, total, data, onData, onNext, onPrev, rec, setRec }) {
   const mediaRecorderRef = useRef(null);
@@ -128,15 +168,9 @@ export default function VoiceStep({ step, idx, total, data, onData, onNext, onPr
           } else if (step.key === 'medications') {
             let medsString = '';
             if (parsed.meds && Array.isArray(parsed.meds)) {
-              medsString = parsed.meds.map(m => {
-                let timesStr = '';
-                if (m.times && m.times.length) {
-                  timesStr = ` – take in ${m.times.join(', ')}`;
-                } else if (m.frequency_shorthand) {
-                  timesStr = ` (${m.frequency_shorthand})`;
-                }
-                return `${m.name} ${m.dosage}${timesStr}${m.duration ? ` × ${m.duration}` : ''}`;
-              }).join('; ');
+              console.log('Medications array from LLM:', JSON.stringify(parsed.meds, null, 2));
+              const formattedMeds = parsed.meds.map(med => formatMedication(med));
+              medsString = formattedMeds.join('; \n');
             }
             stepData = { meds: medsString };
           } else if (step.key === 'investigations') {
@@ -164,9 +198,6 @@ export default function VoiceStep({ step, idx, total, data, onData, onNext, onPr
       mediaRecorder.start();
       setIsRecording(true);
       setRec('recording');
-      setTimeout(() => {
-        if (mediaRecorderRef.current?.state === 'recording') stopRecording();
-      }, 15000);
     } catch (err) {
       console.error('Microphone error:', err);
       alert('Could not access microphone. Please check permissions.');
@@ -181,12 +212,28 @@ export default function VoiceStep({ step, idx, total, data, onData, onNext, onPr
     }
   };
 
+  const handleButtonClick = () => {
+    if (rec === 'recording') {
+      stopRecording();
+    } else if (rec === 'done') {
+      setRec('idle');
+      setIsRecording(false);
+      setCooldown(false);
+      if (mediaRecorderRef.current) mediaRecorderRef.current = null;
+      audioChunksRef.current = [];
+      setTimeout(() => startRecording(), 50);
+    } else if (rec === 'idle') {
+      startRecording();
+    }
+  };
+
   const STATE = {
     idle:       { label: 'Ready to Record', hint: 'Tap the microphone to start', btnCls: 'bg-blue-600 hover:bg-blue-700 shadow-lg', Icon: Mic, iconCls: 'text-white' },
     recording:  { label: 'Recording…',      hint: 'Speak clearly. Tap ⏹ to stop.', btnCls: 'bg-red-500 animate-mpulse', Icon: Square, iconCls: 'text-white' },
     processing: { label: 'Transcribing & Extracting', hint: 'AI is processing your speech...', btnCls: 'bg-amber-500', Icon: Loader, iconCls: 'text-white animate-spin-slow' },
-    done:       { label: 'Captured ✓',      hint: 'Fields filled! Review or re-record.', btnCls: 'bg-green-600', Icon: CheckCircle, iconCls: 'text-white' },
+    done:       { label: 'Captured ✓',      hint: 'Click the ✅ to record again', btnCls: 'bg-green-600', Icon: CheckCircle, iconCls: 'text-white' },
   };
+
   const { label, hint, btnCls, Icon, iconCls } = STATE[rec];
   const badgeCls = {
     idle: 'bg-blue-100 text-blue-700',
@@ -208,7 +255,7 @@ export default function VoiceStep({ step, idx, total, data, onData, onNext, onPr
 
       <div className={`mx-4 md:mx-8 mt-6 mb-6 flex flex-col items-center gap-4 rounded-2xl bg-slate-50 px-6 py-8 transition-all duration-300 ${rec === 'recording' ? 'border-2 border-red-400 bg-red-50' : 'border-2 border-transparent'}`}>
         <button
-          onClick={rec === 'recording' ? stopRecording : startRecording}
+          onClick={handleButtonClick}
           disabled={cooldown || rec === 'processing'}
           className={`flex h-20 w-20 items-center justify-center rounded-full transition-all duration-300 ${btnCls} ${(cooldown || rec === 'processing') ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
@@ -219,7 +266,6 @@ export default function VoiceStep({ step, idx, total, data, onData, onNext, onPr
         {cooldown && <p className="text-xs text-amber-600">⏳ Cooldown – please wait 2 seconds</p>}
       </div>
 
-      {/* Responsive field grid: single column on mobile, two columns on sm and up */}
       <div className={`mx-4 md:mx-8 mb-6 grid gap-4 ${isSingle ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
         {step.fields.map(f => (
           <div key={f.key} className="flex flex-col gap-2">

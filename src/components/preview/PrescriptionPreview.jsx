@@ -12,6 +12,14 @@ export default function PrescriptionPreview({ data, doctor, fullPage = false }) 
   const today = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
   const pid = `RX-${Date.now().toString().slice(-6)}`;
 
+  // Fallback values for clinic info
+  const clinicName = doctor.clinic_name || 'MediScribe Clinic';
+  const clinicPhone = doctor.clinic_phone || '+880 1700-000000';
+  const clinicAddress = doctor.clinic_address || '123 Medical Quarter, Dhaka 1200';
+  const doctorName = doctor.name || 'Doctor';
+  const doctorSpecialty = doctor.specialty || 'Physician';
+  const doctorReg = doctor.reg || '---';
+
   // ---------- Helper: Convert OKLCH strings to safe browser HEX Fallbacks ----------
   const forceSafeColorsOnClone = (clonedDoc) => {
     const colorMap = {
@@ -134,15 +142,19 @@ export default function PrescriptionPreview({ data, doctor, fullPage = false }) 
         </div>
 
         <div ref={previewRef} id="rx-doc-print" className={fullPage ? 'px-9 py-8' : 'px-5 py-4'}>
+          {/* Clinic header with dynamic doctor and clinic info */}
           <div className={`border-b-2 border-blue-600 ${fullPage ? 'mb-6 pb-5' : 'mb-3 pb-3'}`}>
             <h3 className={`font-bold text-slate-800 ${fullPage ? 'text-[18px]' : 'text-[13px]'}`} style={{ fontFamily: 'IBM Plex Serif, serif' }}>
-              {doctor.name}
+              {doctorName}
             </h3>
             <p className={`mt-0.5 text-slate-500 ${fullPage ? 'text-[12px]' : 'text-[10px]'}`}>
-              {doctor.specialty} · Reg: {doctor.reg}
+              {doctorSpecialty} · Reg: {doctorReg}
             </p>
             <p className={`text-slate-500 ${fullPage ? 'text-[12px]' : 'text-[10px]'}`}>
-              MediScribe Clinic · +880 1700-000000
+              {clinicName} · {clinicPhone}
+            </p>
+            <p className={`text-slate-500 ${fullPage ? 'text-[12px]' : 'text-[10px]'}`}>
+              {clinicAddress}
             </p>
           </div>
 
@@ -183,8 +195,8 @@ export default function PrescriptionPreview({ data, doctor, fullPage = false }) 
               <span className={fullPage ? 'text-[10px]' : 'text-[8px]'}>Next visit: 7 days</span>
             </div>
             <div className={`border-t-[1.5px] border-slate-700 pt-2 text-center text-slate-500 ${fullPage ? 'w-44 text-[11px]' : 'w-28 text-[9px]'}`}>
-              {doctor.name}<br />
-              <span className={fullPage ? 'text-[9px]' : 'text-[8px]'}>{doctor.specialty}</span>
+              {doctorName}<br />
+              <span className={fullPage ? 'text-[9px]' : 'text-[8px]'}>{doctorSpecialty}</span>
             </div>
           </div>
         </div>
