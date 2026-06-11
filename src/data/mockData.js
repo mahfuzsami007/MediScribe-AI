@@ -16,7 +16,7 @@ export const PATIENTS = [
 
 export const MOCK_AI = {
   patient:        () => ({ name: 'Karim Hassan', age: '58', gender: 'Male' }),
-  vitals:         () => ({ weight: '72 kg', height: '168 cm', temp: '98.6°F', bp: '142/88 mmHg', hr: '82 bpm' }),
+  vitals:         () => ({ weight: '72 kg', temp: '98.6°F', bp: '142/88 mmHg', hr: '82 bpm' }), // removed height
   symptoms:       () => ({ chief: 'Chest tightness and shortness of breath on exertion for 3 weeks. Worsening in mornings. Associated mild cough, no fever.', findings: 'Bilateral basal crepitations. Reduced air entry right base. SpO₂ 94% on room air.' }),
   medications:    () => ({ meds: '1. Tab. Salbutamol 4mg — 1 tab TID × 10 days\n2. Syp. Ambroxol 30mg/5ml — 10ml TID × 7 days\n3. Tab. Montelukast 10mg — OD at night × 14 days' }),
   investigations: () => ({ tests: 'CBC with differential\nChest X-Ray (PA view)\nSpirometry (PFT)\nECG 12-lead' }),
@@ -33,10 +33,10 @@ export const RX_STEPS = [
     ],
   },
   {
-    key: 'vitals', label: 'Vitals', hint: 'Weight, height, temp, BP, HR',
+    key: 'vitals', label: 'Vitals', hint: 'Weight, temp, BP, HR', // updated hint
     fields: [
       { key: 'weight', label: 'Weight',         placeholder: 'kg' },
-      { key: 'height', label: 'Height',         placeholder: 'cm' },
+      // height field removed
       { key: 'temp',   label: 'Temperature',    placeholder: '°F' },
       { key: 'bp',     label: 'Blood Pressure', placeholder: 'mmHg' },
       { key: 'hr',     label: 'Heart Rate',     placeholder: 'bpm' },

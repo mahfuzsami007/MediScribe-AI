@@ -11,6 +11,7 @@ import { supabase } from './auth';
  * @param {string} prescriptionData.investigations - Tests ordered.
  * @param {string} prescriptionData.advice - Lifestyle advice.
  * @param {Object} prescriptionData.vitals - Vital signs (e.g., { bp: "120/80", hr: 72, temp: 98.6, spo2: 98 }).
+ * @param {string} prescriptionData.started_at - ISO timestamp when the prescription was started (optional).
  * @returns {Promise<{ success: boolean, error: Error | null }>}
  */
 export async function submitResearchData(prescriptionData) {
@@ -34,6 +35,7 @@ export async function submitResearchData(prescriptionData) {
     vitals: prescriptionData.vitals && Object.keys(prescriptionData.vitals).length > 0
       ? prescriptionData.vitals
       : null,
+    started_at: prescriptionData.started_at || null, // Add this line to store start time
   };
 
   try {

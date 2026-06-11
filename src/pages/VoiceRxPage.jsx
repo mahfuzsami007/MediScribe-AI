@@ -21,6 +21,7 @@ export default function VoiceRxPage() {
   const [rx, setRx] = useState(EMPTY_RX);
   const [rec, setRec] = useState('idle');
   const [isSubmittingResearch, setIsSubmittingResearch] = useState(false);
+  const [startedAt, setStartedAt] = useState(new Date()); // track start time
 
   // Fetch doctor profile including clinic info
   useEffect(() => {
@@ -36,6 +37,11 @@ export default function VoiceRxPage() {
       }
     };
     fetchProfile();
+  }, []);
+
+  // Reset started_at when component mounts (new session)
+  useEffect(() => {
+    setStartedAt(new Date());
   }, []);
 
   const sk = RX_STEPS[cur].key;
@@ -75,6 +81,7 @@ export default function VoiceRxPage() {
         temp: rx.vitals?.temp ?? null,
         weight: rx.vitals?.weight ?? null,
       },
+      started_at: startedAt.toISOString(), // include start time
     };
     const { success, error } = await submitResearchData(researchPayload);
     if (success) {
@@ -91,6 +98,7 @@ export default function VoiceRxPage() {
     setPreview(false);
     setDone(new Set());
     setRx(EMPTY_RX);
+    setStartedAt(new Date()); // reset start time for new prescription
   };
 
   // Build complete doctor object with clinic info
