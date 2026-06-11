@@ -58,19 +58,32 @@ export default function PrescriptionPreview({ data, doctor, fullPage = false }) 
     });
   };
 
-  // Helper: generate PDF Blob
+  // Helper: generate PDF Blob (now clones the element with fixed width for consistent A4 on mobile)
   const generatePdfBlob = async () => {
     if (!previewRef.current) throw new Error('Preview not available');
 
-    const canvas = await html2canvas(previewRef.current, {
+    // Clone the preview element to avoid affecting the original DOM
+    const original = previewRef.current;
+    const clone = original.cloneNode(true);
+    // Force a fixed width for consistent capture (800px works well for A4)
+    clone.style.width = '800px';
+    clone.style.position = 'absolute';
+    clone.style.left = '-9999px';
+    clone.style.top = '-9999px';
+    clone.style.backgroundColor = '#ffffff';
+    document.body.appendChild(clone);
+
+    // Apply color fixes to the clone (handles Tailwind oklch colors)
+    forceSafeColorsOnClone(clone);
+
+    const canvas = await html2canvas(clone, {
       scale: 2,
       logging: false,
       useCORS: true,
       allowTaint: true,
-      onclone: (clonedDoc) => {
-        forceSafeColorsOnClone(clonedDoc);
-      },
     });
+
+    document.body.removeChild(clone);
 
     const imgData = canvas.toDataURL('image/png');
     const pdf = new jsPDF('p', 'mm', 'a4');
@@ -158,7 +171,7 @@ export default function PrescriptionPreview({ data, doctor, fullPage = false }) 
             </p>
           </div>
 
-          {/* Patient info grid – now includes Temperature and Heart Rate, responsive columns */}
+          {/* Patient info grid – responsive, includes temp & heart rate */}
           <div className={`mb-5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 rounded-xl bg-slate-50 ${fullPage ? 'p-4' : 'p-3'}`}>
             {[
               { l: 'Patient',    v: data.patient?.name || '—' },
