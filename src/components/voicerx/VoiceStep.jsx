@@ -29,7 +29,7 @@ Use the following clinical standards:
     symptoms: `Extract chief complaint and findings. Return JSON: { "chief": "", "findings": "" }`,
     medications: `Extract medications. Return JSON: { "meds": [{"name":"","dosage":"","frequency_shorthand":"","times":[],"duration":""}] }`,
     investigations: `Extract ordered tests. Return JSON: { "tests": [] }`,
-    habits: `Extract lifestyle advice, patient instructions, or recommendations. The doctor may say "advise", "recommend", "instructions", "lifestyle changes", "diet", "exercise", "avoid", "take", etc. Return JSON: { "advice": "" }`,
+    habits: `Extract lifestyle advice, patient instructions, or recommendations. Return JSON: { "advice": "" }`,
   };
 
   return `${baseInstructions}\n\n${stepSchemas[stepKey]}`;
@@ -143,7 +143,6 @@ export default function VoiceStep({ step, idx, total, data, onData, onNext, onPr
             const testsString = (parsed.tests && Array.isArray(parsed.tests)) ? parsed.tests.join(', ') : '';
             stepData = { tests: testsString };
           } else if (step.key === 'habits') {
-            // Reliable extraction: try multiple possible keys
             let adviceText = parsed.advice || parsed.instructions || parsed.recommendations || '';
             if (!adviceText && typeof parsed === 'string') adviceText = parsed;
             stepData = { advice: adviceText };
@@ -199,7 +198,7 @@ export default function VoiceStep({ step, idx, total, data, onData, onNext, onPr
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="flex items-start justify-between border-b border-slate-100 px-8 py-6">
+      <div className="flex items-start justify-between border-b border-slate-100 px-4 md:px-8 py-6">
         <div>
           <h3 className="text-[15px] font-bold tracking-tight text-slate-800">Step {idx + 1} of {total} — {step.label}</h3>
           <p className="mt-1 text-[12px] text-slate-400">{step.hint}</p>
@@ -207,7 +206,7 @@ export default function VoiceStep({ step, idx, total, data, onData, onNext, onPr
         <span className={`ml-4 shrink-0 rounded-full px-3 py-1 text-[10px] font-bold ${badgeCls}`}>{label}</span>
       </div>
 
-      <div className={`mx-8 mt-6 mb-6 flex flex-col items-center gap-4 rounded-2xl bg-slate-50 px-6 py-8 transition-all duration-300 ${rec === 'recording' ? 'border-2 border-red-400 bg-red-50' : 'border-2 border-transparent'}`}>
+      <div className={`mx-4 md:mx-8 mt-6 mb-6 flex flex-col items-center gap-4 rounded-2xl bg-slate-50 px-6 py-8 transition-all duration-300 ${rec === 'recording' ? 'border-2 border-red-400 bg-red-50' : 'border-2 border-transparent'}`}>
         <button
           onClick={rec === 'recording' ? stopRecording : startRecording}
           disabled={cooldown || rec === 'processing'}
@@ -220,13 +219,14 @@ export default function VoiceStep({ step, idx, total, data, onData, onNext, onPr
         {cooldown && <p className="text-xs text-amber-600">⏳ Cooldown – please wait 2 seconds</p>}
       </div>
 
-      <div className={`mx-8 mb-6 grid gap-4 ${isSingle ? 'grid-cols-1' : 'grid-cols-2'}`}>
+      {/* Responsive field grid: single column on mobile, two columns on sm and up */}
+      <div className={`mx-4 md:mx-8 mb-6 grid gap-4 ${isSingle ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
         {step.fields.map(f => (
           <div key={f.key} className="flex flex-col gap-2">
             <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{f.label}</label>
             {f.multi ? (
               <textarea
-                className="ms-textarea"
+                className="ms-textarea w-full"
                 rows={4}
                 value={data[f.key] || ''}
                 onChange={e => onData({ ...data, [f.key]: e.target.value })}
@@ -234,7 +234,7 @@ export default function VoiceStep({ step, idx, total, data, onData, onNext, onPr
               />
             ) : (
               <input
-                className="ms-input"
+                className="ms-input w-full"
                 value={data[f.key] || ''}
                 onChange={e => onData({ ...data, [f.key]: e.target.value })}
                 placeholder={f.placeholder}
@@ -244,18 +244,18 @@ export default function VoiceStep({ step, idx, total, data, onData, onNext, onPr
         ))}
       </div>
 
-      <div className="flex gap-3 border-t border-slate-100 px-8 py-5">
+      <div className="flex gap-3 border-t border-slate-100 px-4 md:px-8 py-5">
         {idx > 0 && (
           <button
             onClick={() => { if (rec === 'recording') stopRecording(); onPrev(); }}
-            className="rounded-xl bg-slate-100 px-6 py-3 text-[13px] font-semibold text-slate-600"
+            className="rounded-xl bg-slate-100 px-5 py-2.5 text-[13px] font-semibold text-slate-600 transition hover:bg-slate-200"
           >
             ← Back
           </button>
         )}
         <button
           onClick={() => { if (rec === 'recording') stopRecording(); onNext(); }}
-          className="flex-1 rounded-xl bg-blue-600 px-6 py-3 text-[13px] font-bold text-white"
+          className="flex-1 rounded-xl bg-blue-600 px-5 py-2.5 text-[13px] font-bold text-white transition hover:bg-blue-700"
         >
           {idx < total - 1 ? `Next: ${step.label} →` : 'View Prescription Preview →'}
         </button>
