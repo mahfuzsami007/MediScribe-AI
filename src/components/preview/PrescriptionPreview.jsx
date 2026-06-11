@@ -20,7 +20,7 @@ export default function PrescriptionPreview({ data, doctor, fullPage = false }) 
   const doctorSpecialty = doctor.specialty || 'Physician';
   const doctorReg = doctor.reg || '---';
 
-  // ---------- Helper: Convert OKLCH strings to safe browser HEX Fallbacks ----------
+  // Helper: Convert OKLCH strings to safe browser HEX Fallbacks
   const forceSafeColorsOnClone = (clonedDoc) => {
     const colorMap = {
       'bg-blue-600': '#2563eb',
@@ -58,7 +58,7 @@ export default function PrescriptionPreview({ data, doctor, fullPage = false }) 
     });
   };
 
-  // ---------- Helper: generate PDF Blob ----------
+  // Helper: generate PDF Blob
   const generatePdfBlob = async () => {
     if (!previewRef.current) throw new Error('Preview not available');
 
@@ -91,7 +91,7 @@ export default function PrescriptionPreview({ data, doctor, fullPage = false }) 
     return pdf.output('blob');
   };
 
-  // ---------- QR code PDF generation & upload ----------
+  // QR code PDF generation & upload
   const generateAndUploadPrescription = async () => {
     setIsUploading(true);
     try {
@@ -142,7 +142,7 @@ export default function PrescriptionPreview({ data, doctor, fullPage = false }) 
         </div>
 
         <div ref={previewRef} id="rx-doc-print" className={fullPage ? 'px-9 py-8' : 'px-5 py-4'}>
-          {/* Clinic header with dynamic doctor and clinic info */}
+          {/* Clinic header */}
           <div className={`border-b-2 border-blue-600 ${fullPage ? 'mb-6 pb-5' : 'mb-3 pb-3'}`}>
             <h3 className={`font-bold text-slate-800 ${fullPage ? 'text-[18px]' : 'text-[13px]'}`} style={{ fontFamily: 'IBM Plex Serif, serif' }}>
               {doctorName}
@@ -158,13 +158,16 @@ export default function PrescriptionPreview({ data, doctor, fullPage = false }) 
             </p>
           </div>
 
-          <div className={`mb-5 grid grid-cols-3 rounded-xl bg-slate-50 ${fullPage ? 'gap-4 p-4' : 'gap-2.5 p-3'}`}>
+          {/* Patient info grid – now includes Temperature and Heart Rate, responsive columns */}
+          <div className={`mb-5 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 rounded-xl bg-slate-50 ${fullPage ? 'p-4' : 'p-3'}`}>
             {[
               { l: 'Patient',    v: data.patient?.name || '—' },
               { l: 'Age/Gender', v: `${data.patient?.age ? data.patient.age + 'Y' : '—'} / ${data.patient?.gender || '—'}` },
               { l: 'Date',       v: today },
               { l: 'BP',         v: data.vitals?.bp     || '—' },
               { l: 'Weight',     v: data.vitals?.weight || '—' },
+              { l: 'Temperature',v: data.vitals?.temp   || '—' },
+              { l: 'Heart Rate', v: data.vitals?.hr     || '—' },
               { l: 'Rx No.',     v: pid },
             ].map(item => (
               <div key={item.l}>

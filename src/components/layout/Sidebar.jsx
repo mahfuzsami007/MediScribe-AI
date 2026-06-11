@@ -57,7 +57,8 @@ export default function Sidebar() {
   const closeMobile = () => setMobileOpen(false);
 
   const sidebarContent = (
-    <div className={`flex flex-col h-full bg-white border-r border-slate-200 transition-all duration-300 ${open ? 'w-64' : 'w-20'} ${mobileOpen ? 'fixed inset-y-0 left-0 z-50 w-64 shadow-xl' : ''}`}>
+    // Changed expanded width from w-64 (256px) to w-[220px]
+    <div className={`flex flex-col h-full bg-white border-r border-slate-200 transition-all duration-300 ${open ? 'w-[220px]' : 'w-20'} ${mobileOpen ? 'fixed inset-y-0 left-0 z-50 w-[220px] shadow-xl' : ''}`}>
       <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-5">
         <div className="flex min-w-0 items-center gap-3 overflow-hidden">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-[15px]">⚕</div>
