@@ -10,9 +10,8 @@ export default function AppLayout() {
     <div className="flex h-screen overflow-hidden bg-slate-100">
       <Sidebar />
       <main className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-        <div className="h-full w-full p-4 md:p-6 lg:p-8">
-          <Outlet />
-        </div>
+        {/* No padding here – each page will handle its own inner padding */}
+        <Outlet />
       </main>
     </div>
   );

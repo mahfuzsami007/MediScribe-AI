@@ -52,18 +52,39 @@ export default function ProfilePage() {
   const save = async () => {
     const session = getSession();
     if (!session?.user?.id) return;
-    const { error } = await supabase.from('profiles').update({
+
+    // 1. Update profiles table
+    const { error: profileError } = await supabase.from('profiles').update({
       full_name: form.full_name,
       speciality: form.speciality,
       clinic_name: form.clinic_name,
       clinic_phone: form.clinic_phone,
       clinic_address: form.clinic_address,
     }).eq('id', session.user.id);
-    if (error) alert(error.message);
-    else {
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+    if (profileError) {
+      alert(profileError.message);
+      return;
     }
+
+    // 2. Also update auth.users metadata (so that user_metadata reflects the new name)
+    const { error: metaError } = await supabase.auth.updateUser({
+      data: {
+        name: form.full_name,
+        full_name: form.full_name,
+        speciality: form.speciality,
+      }
+    });
+    if (metaError) {
+      console.warn('User metadata update failed:', metaError);
+    } else {
+      // Refresh session in localStorage to keep it consistent
+      const { data: { user } } = await supabase.auth.getUser();
+      const updatedSession = { ...session, user };
+      localStorage.setItem('supabase_session', JSON.stringify(updatedSession));
+    }
+
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
   const handlePhoto = async (e) => {
@@ -97,7 +118,6 @@ export default function ProfilePage() {
       </div>
       <div className="p-4 md:p-8">
         <div className="max-w-2xl w-full mx-auto rounded-2xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm">
-          {/* Avatar and name section - responsive */}
           <div className="flex flex-col sm:flex-row items-center gap-6 pb-6 border-b border-slate-100">
             <div onClick={() => fileRef.current.click()} className="group relative flex h-24 w-24 shrink-0 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-slate-300 bg-slate-100 text-[10px] font-semibold text-slate-400 transition hover:border-blue-500 hover:bg-blue-50 hover:text-blue-500">
               {photo ? <img src={photo} alt="profile" className="absolute inset-0 h-full w-full rounded-full object-cover" /> : <><span className="text-2xl">📸</span><span className="mt-1">Upload</span></>}
@@ -112,34 +132,18 @@ export default function ProfilePage() {
 
           <SectionTitle>Professional Details</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <FieldGroup label="Full Name">
-              <input className="ms-input w-full" value={form.full_name} onChange={setField('full_name')} />
-            </FieldGroup>
-            <FieldGroup label="Speciality">
-              <select className="ms-input w-full" value={form.speciality} onChange={setField('speciality')}>
-                {SPECIALTIES.map(s => <option key={s}>{s}</option>)}
-              </select>
-            </FieldGroup>
+            <FieldGroup label="Full Name"><input className="ms-input w-full" value={form.full_name} onChange={setField('full_name')} /></FieldGroup>
+            <FieldGroup label="Speciality"><select className="ms-input w-full" value={form.speciality} onChange={setField('speciality')}>{SPECIALTIES.map(s => <option key={s}>{s}</option>)}</select></FieldGroup>
           </div>
-          <FieldGroup label="Medical Registration Number">
-            <input className="ms-input w-full bg-slate-100" value={form.reg_number} disabled />
-          </FieldGroup>
-          <FieldGroup label="Email Address">
-            <input type="email" className="ms-input w-full bg-slate-100" value={form.email} disabled />
-          </FieldGroup>
+          <FieldGroup label="Medical Registration Number"><input className="ms-input w-full bg-slate-100" value={form.reg_number} disabled /></FieldGroup>
+          <FieldGroup label="Email Address"><input type="email" className="ms-input w-full bg-slate-100" value={form.email} disabled /></FieldGroup>
 
           <SectionTitle>Clinic Information</SectionTitle>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <FieldGroup label="Clinic Name">
-              <input className="ms-input w-full" value={form.clinic_name} onChange={setField('clinic_name')} placeholder="e.g. MediScribe Clinic" />
-            </FieldGroup>
-            <FieldGroup label="Contact Number">
-              <input className="ms-input w-full" value={form.clinic_phone} onChange={setField('clinic_phone')} placeholder="+880 1700-000000" />
-            </FieldGroup>
+            <FieldGroup label="Clinic Name"><input className="ms-input w-full" value={form.clinic_name} onChange={setField('clinic_name')} placeholder="e.g. MediScribe Clinic" /></FieldGroup>
+            <FieldGroup label="Contact Number"><input className="ms-input w-full" value={form.clinic_phone} onChange={setField('clinic_phone')} placeholder="+880 1700-000000" /></FieldGroup>
           </div>
-          <FieldGroup label="Clinic Address">
-            <textarea className="ms-textarea w-full" rows="2" value={form.clinic_address} onChange={setField('clinic_address')} placeholder="Full clinic address" />
-          </FieldGroup>
+          <FieldGroup label="Clinic Address"><textarea className="ms-textarea w-full" rows="2" value={form.clinic_address} onChange={setField('clinic_address')} placeholder="Full clinic address" /></FieldGroup>
 
           <div className="mt-6 flex flex-wrap items-center gap-4 border-t border-slate-100 pt-6">
             <button onClick={save} className="rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-blue-700">Save Changes</button>
